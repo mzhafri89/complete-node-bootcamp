@@ -9,7 +9,9 @@ const baseRoute = `/api/${apiVersion}`;
 
 //app, js mainly should contain middlewares
 //global middleware
-app.use(morgan('dev'));
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+}
 //server static pages
 app.use(express.static(`${__dirname}/public`));
 app.use(express.json());
