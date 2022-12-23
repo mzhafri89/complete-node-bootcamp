@@ -113,6 +113,48 @@ exports.aliasTopRated = (req, res, next) => {
   next();
 };
 
+exports.getStats = async (req, res) => {
+  try {
+    const stats = await Tour.aggregate([
+      {
+        $match: { ratingsAverage: { $gte: 4.5 } },
+      },
+      {
+        $group: {
+          // the original documents that matches would be transformed to the one below
+          _id: '$difficulty',
+          totalTours: { $sum: 1 }, // for every rating that pass this pipeline, add 1 to the total
+          totalRating: { $sum: '$ratingsQuantity' },
+          avgRating: { $avg: '$ratingsAverage' },
+          avgPrice: { $avg: '$price' },
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' },
+        },
+      },
+      {
+        $sort: {
+          avgPrice: 1,
+        },
+      },
+      // {
+      //   $match: {
+      //     _id: { $ne: 'easy' },
+      //   },
+      // },
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: stats,
+    });
+  } catch (e) {
+    res.status(400).json({
+      status: 'fail',
+      message: e.message,
+    });
+  }
+};
+
 exports.checkId = (req, res, next, value) => {
   // // const id = parseInt(value, 10);
   // //
