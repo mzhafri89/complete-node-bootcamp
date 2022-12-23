@@ -1,119 +1,116 @@
-const fs = require('fs');
+const Tour = require('../models/tour');
 
-const tours = JSON.parse(
-  fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`, 'utf-8')
-);
-
-exports.getAllTour = (_, res) => {
-  res.status(200).json({
-    //format using JSend standard
-    status: 'success',
-    results: tours.length,
-    data: {
-      tours,
-    },
-  });
-};
-
-exports.getTour = (req, res) => {
-  const tour = tours.find((t) => t.id === req.params.id);
-
-  if (!tour) {
-    return res.status(404).json({
+exports.getAllTour = async (_, res) => {
+  try {
+    const tours = await Tour.find();
+    res.status(200).json({
+      //format using JSend standard
+      status: 'success',
+      results: tours.length,
+      data: {
+        tours,
+      },
+    });
+  } catch (e) {
+    res.status(404).json({
       status: 'fail',
-      message: 'Not Found',
+      message: e.message,
     });
   }
-
-  res.status(200).json({
-    //format using JSend standard
-    status: 'success',
-    data: {
-      tour,
-    },
-  });
 };
 
-exports.createTour = (req, res) => {
-  //by default express doesnt include request body, need to use middleware
-  const id = tours[tours.length - 1].id + 1;
-  const tour = { ...req.body, id };
-  tours.push(tour);
+exports.getTour = async (req, res) => {
+  try {
+    const tour = await Tour.findById(req.params.id);
 
-  fs.writeFile(
-    `${__dirname}/dev-data/data/tours-simple.json`,
-    JSON.stringify(tours),
-    'utf-8',
-    (err) => {
-      if (err) {
-        res.status(500).json({
-          status: 'error',
-          message: err.message,
-          code: 500,
-          data: tour,
-        });
-      }
-
-      res.status(201).json({
-        status: 'success',
-        data: tour,
-      });
-    }
-  );
-};
-
-exports.updateTour = (req, res) => {
-  const tour = tours.find((t) => t.id === req.params.id);
-
-  if (!tour) {
-    return res.status(404).json({
+    res.status(200).json({
+      //format using JSend standard
+      status: 'success',
+      data: {
+        tour,
+      },
+    });
+  } catch (e) {
+    res.status(404).json({
       status: 'fail',
-      message: 'Not Found',
+      message: e.message,
     });
   }
-
-  const updatedTour = {
-    ...tour,
-    ...req.body,
-  };
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      tour: updatedTour,
-    },
-  });
 };
 
-exports.deleteTour = (req, res) => {
-  const tour = tours.find((t) => t.id === req.params.id);
+exports.createTour = async (req, res) => {
+  try {
+    const tour = await Tour.create(req.body);
 
-  if (!tour) {
-    return res.status(404).json({
+    res.status(200).json({
+      status: 'success',
+      data: {
+        tour,
+      },
+    });
+  } catch (e) {
+    res.status(400).json({
       status: 'fail',
-      message: 'Not Found',
+      message: e.message,
     });
   }
+};
 
-  res.status(204).json({
-    status: 'success',
-    data: null,
-  });
+exports.updateTour = async (req, res) => {
+  const {
+    params: { id },
+    body,
+  } = req;
+
+  try {
+    const tour = await Tour.findByIdAndUpdate(id, body, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        tour,
+      },
+    });
+  } catch (e) {
+    res.status(400).json({
+      status: 'fail',
+      message: e.message,
+    });
+  }
+};
+
+exports.deleteTour = async (req, res) => {
+  try {
+    await Tour.findByIdAndDelete(req.params.id);
+
+    res.status(204).json({
+      status: 'success',
+      data: null,
+    });
+  } catch (e) {
+    res.status(400).json({
+      status: 'fail',
+      message: e.message,
+    });
+  }
 };
 
 exports.checkId = (req, res, next, value) => {
-  const id = parseInt(value);
-
-  if (id >= tours.length) {
-    return res.status(404).json({
-      status: 'fail',
-      message: 'Invalid ID',
-    });
-  }
-
-  req.params.id = id;
-
-  next();
+  // // const id = parseInt(value, 10);
+  // //
+  // // if (id >= _tours.length) {
+  // //   return res.status(404).json({
+  // //     status: 'fail',
+  // //     message: 'Invalid ID',
+  // //   });
+  // // }
+  //
+  // req.params.id = id;
+  //
+  // next();
 };
 
 exports.checkBody = (req, res, next) => {
