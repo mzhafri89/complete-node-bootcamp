@@ -155,6 +155,59 @@ exports.getStats = async (req, res) => {
   }
 };
 
+exports.getMonthlyPlan = async (req, res) => {
+  try {
+    const year = parseInt(req.params.year, 10);
+
+    //unwind destruct an array in a field and create a copy of document related to the unique value
+    const plan = await Tour.aggregate([
+      { $unwind: '$startDates' },
+      {
+        $match: {
+          startDates: {
+            $gte: new Date(`${year}-01-01`),
+            $lte: new Date(`${year}-12-31`),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: '$startDates' },
+          count: { $sum: 1 },
+          tours: {
+            //for each document that passes this pipeline, add its name
+            $push: '$name',
+          },
+        },
+      },
+      {
+        $addFields: { month: '$_id' },
+      },
+      {
+        $project: { _id: 0 },
+      },
+      {
+        $sort: {
+          count: -1,
+        },
+      },
+      // {
+      //   $limit: 6,
+      // },
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: plan,
+    });
+  } catch (e) {
+    res.status(400).json({
+      status: 'fail',
+      message: e.message,
+    });
+  }
+};
+
 exports.checkId = (req, res, next, value) => {
   // // const id = parseInt(value, 10);
   // //
