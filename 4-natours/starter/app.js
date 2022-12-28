@@ -22,5 +22,12 @@ app.use((req, _, next) => {
 //route middleware - create a sub app for each route
 app.use(`${baseRoute}/tours`, tourRouter);
 app.use(`${baseRoute}/users`, userRouter);
+//not handled route
+app.all('*', (req, res, next) =>
+  res.status(404).json({
+    status: 'fail',
+    message: `resource ${req.url} doesn't exist`,
+  })
+); //.all will handle all verb
 
 module.exports = app;
