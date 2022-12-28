@@ -2,6 +2,8 @@ const express = require('express');
 const morgan = require('morgan');
 const tourRouter = require('./routes/tour');
 const userRouter = require('./routes/user');
+const errorHandler = require('./controllers/error');
+const AppError = require('./utils/appError');
 
 const app = express();
 const apiVersion = 'v1';
@@ -23,11 +25,11 @@ app.use((req, _, next) => {
 app.use(`${baseRoute}/tours`, tourRouter);
 app.use(`${baseRoute}/users`, userRouter);
 //not handled route
-app.all('*', (req, res, next) =>
-  res.status(404).json({
-    status: 'fail',
-    message: `resource ${req.url} doesn't exist`,
-  })
-); //.all will handle all verb
+app.all('*', (req, res, next) => {
+  next(new AppError(`resource ${req.url} doesn't exist`, 404));
+}); //.all will handle all verb
+
+//global error handling middleware, express auto recognize the error handling middleware when the call back expects an error param
+app.use(errorHandler);
 
 module.exports = app;
