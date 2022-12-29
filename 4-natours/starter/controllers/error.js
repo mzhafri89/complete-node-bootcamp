@@ -31,6 +31,19 @@ const handleDatabaseCastError = (error) => {
   return new AppError(message, 400);
 };
 
+const handleDatabaseDuplicateKeyError = (error) => {
+  const message = `Duplicate key: ${JSON.stringify(error.keyValue)}`;
+
+  return new AppError(message, 400);
+};
+
+const handleDatabaseValidationError = (error) => {
+  const invalidFields = Object.values(error.errors).map((err) => err.message);
+  const message = `Validation errors: ${invalidFields.join('. ')}`;
+
+  return new AppError(message, 400);
+};
+
 module.exports = (error, req, res, next) => {
   error.statusCode = error.statusCode || 500;
   error.status = error.status || 'error';
@@ -40,11 +53,19 @@ module.exports = (error, req, res, next) => {
   } else {
     let errorCopy;
 
-    //convert db error to operational error
+    //convert db error to operational error - not necessarily needed since the general consensus is, if its not http error, return 500
     if (error.name === 'CastError') {
       errorCopy = handleDatabaseCastError(error);
     }
 
-    handleError(errorCopy, res);
+    if (error.code === 11000) {
+      errorCopy = handleDatabaseDuplicateKeyError(error);
+    }
+
+    if (error.name === 'ValidationError') {
+      errorCopy = handleDatabaseValidationError(error);
+    }
+
+    handleError(errorCopy || error, res);
   }
 };
