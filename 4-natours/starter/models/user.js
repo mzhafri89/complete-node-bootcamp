@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -13,7 +14,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'A user must be associated with an email address'],
     trim: true,
-    unique: [true, 'The email address is already in use'],
+    unique: true,
     validate: {
       validator: validator.isEmail,
       message: 'The email address is invalid',
@@ -25,10 +26,28 @@ const userSchema = new mongoose.Schema({
     minlength: [8, 'Password must be of at least 8 characters'],
   },
   passwordConfirm: {
+    //used only for validation, will be set to undefined after creation/update
     type: String,
     required: [true, 'Please confirm your password'],
+    validate: {
+      //only works on save/create
+      validator: function (passwordConfirm) {
+        return passwordConfirm === this.password;
+      },
+      message: 'Password must match',
+    },
   },
   photo: String,
+});
+
+//hashing/encryption password during save and update
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+
+  this.password = await bcrypt.hash(this.password, 12); //will generate diff string even for the same pass
+  this.passwordConfirm = undefined; //no need to persisted in db
+
+  return next();
 });
 
 const User = mongoose.model('User', userSchema);
