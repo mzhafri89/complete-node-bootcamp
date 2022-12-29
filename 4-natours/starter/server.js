@@ -29,6 +29,15 @@ const app = require('./app');
 
 const port = process.env.PORT || 3000;
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`App listening on port ${port}`);
+});
+
+//handled all unhandled rejection for async
+process.on('unhandledRejection', (err) => {
+  console.error(err.name, err.message);
+  server.close(() => {
+    //gracefully shutdown the server
+    process.exit(1);
+  });
 });
