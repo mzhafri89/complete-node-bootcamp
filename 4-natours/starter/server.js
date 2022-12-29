@@ -24,6 +24,13 @@ mongoose
     console.info('Database connected.');
   });
 
+//will caught sync code issue before app being init
+process.on('uncaughtException', (error) => {
+  console.error(error.name, error.message);
+
+  process.exit(1);
+});
+
 //init app
 const app = require('./app');
 
@@ -34,8 +41,8 @@ const server = app.listen(port, () => {
 });
 
 //handled all unhandled rejection for async
-process.on('unhandledRejection', (err) => {
-  console.error(err.name, err.message);
+process.on('unhandledRejection', (error) => {
+  console.error(error.name, error.message);
   server.close(() => {
     //gracefully shutdown the server
     process.exit(1);
