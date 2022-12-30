@@ -42,6 +42,11 @@ const userSchema = new mongoose.Schema({
     type: Date,
   },
   photo: String,
+  role: {
+    type: String,
+    enum: ['user', 'guide', 'lead-guide', 'admin'],
+    default: 'user',
+  },
 });
 
 //hashing/encryption password during save and update

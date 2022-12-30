@@ -15,13 +15,25 @@ const generateToken = (id) =>
 
 exports.register = catchAsync(async (req, res, next) => {
   //manually specified the field so that we only register user with current fields
+  const {
+    body: {
+      name,
+      email,
+      password,
+      passwordConfirm,
+      passwordUpdatedAt,
+      photo,
+      role,
+    },
+  } = req;
   const user = await User.create({
-    name: req.body.name,
-    email: req.body.email,
-    password: req.body.password,
-    passwordConfirm: req.body.passwordConfirm,
-    passwordUpdatedAt: req.body.passwordUpdatedAt,
-    photo: req.body.photo,
+    name,
+    email,
+    password,
+    passwordConfirm,
+    passwordUpdatedAt,
+    photo,
+    role,
   });
 
   const token = generateToken(user._id);
@@ -94,3 +106,12 @@ exports.tokenGuard = catchAsync(async (req, res, next) => {
   req.user = validUser;
   next();
 });
+
+exports.roleGuard = (...roles) =>
+  catchAsync(async (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return next(new AppError('Forbidden: 001', 403));
+    }
+
+    next();
+  });
