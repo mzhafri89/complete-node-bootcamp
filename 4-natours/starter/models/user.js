@@ -38,6 +38,9 @@ const userSchema = new mongoose.Schema({
       message: 'Password must match',
     },
   },
+  passwordUpdatedAt: {
+    type: Date,
+  },
   photo: String,
 });
 
@@ -57,6 +60,20 @@ userSchema.methods.validatePassword = async function (
   password
 ) {
   return await bcrypt.compare(candidatePassword, password);
+};
+
+userSchema.methods.isPasswordChanged = function (timestamp) {
+  if (this.passwordUpdatedAt) {
+    const updatedTimestamp = parseInt(
+      this.passwordUpdatedAt.getTime() / 1000,
+      10
+    );
+
+    return timestamp < updatedTimestamp;
+  }
+
+  //false  = password is not changed after token is issued
+  return false;
 };
 
 const User = mongoose.model('User', userSchema);

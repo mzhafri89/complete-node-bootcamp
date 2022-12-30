@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { promisify } = require('util');
 const User = require('../models/user');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
@@ -19,6 +20,8 @@ exports.register = catchAsync(async (req, res, next) => {
     email: req.body.email,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
+    passwordUpdatedAt: req.body.passwordUpdatedAt,
+    photo: req.body.photo,
   });
 
   const token = generateToken(user._id);
@@ -58,4 +61,36 @@ exports.login = catchAsync(async (req, res, next) => {
     status: 'success',
     token,
   });
+});
+
+exports.tokenGuard = catchAsync(async (req, res, next) => {
+  //get token
+  const {
+    headers: { authorization },
+  } = req;
+  let token = '';
+
+  if (authorization && authorization.startsWith('Bearer')) {
+    token = authorization.split(' ')[1];
+  }
+
+  if (!token) {
+    return next(new AppError('Unauthorized: 001', 401));
+  }
+  // verify token
+  const payload = await promisify(jwt.verify)(token, JWT_SECRET);
+  //check if user exist
+  const validUser = await User.findById(payload.id);
+
+  if (!validUser) {
+    return next(new AppError('Unauthorized: 002', 401));
+  }
+  //check if user password changed after token is issued
+  if (validUser.isPasswordChanged(payload.iat)) {
+    return next(new AppError('Unauthorized: 003', 401));
+  }
+
+  //pass down the middleware chain
+  req.user = validUser;
+  next();
 });

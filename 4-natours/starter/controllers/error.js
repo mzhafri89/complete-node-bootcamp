@@ -44,6 +44,8 @@ const handleDatabaseValidationError = (error) => {
   return new AppError(message, 400);
 };
 
+const handleJWTError = () => new AppError('Invalid token.', 401);
+
 module.exports = (error, req, res, next) => {
   error.statusCode = error.statusCode || 500;
   error.status = error.status || 'error';
@@ -64,6 +66,13 @@ module.exports = (error, req, res, next) => {
 
     if (error.name === 'ValidationError') {
       errorCopy = handleDatabaseValidationError(error);
+    }
+
+    if (
+      error.name === 'JsonWebTokenError' ||
+      error.name === 'TokenExpiredError'
+    ) {
+      errorCopy = handleJWTError();
     }
 
     handleError(errorCopy || error, res);
