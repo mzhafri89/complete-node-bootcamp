@@ -1,8 +1,10 @@
 const jwt = require('jsonwebtoken');
 const { promisify } = require('util');
+const crypto = require('crypto');
 const User = require('../models/user');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const sendEmail = require('../utils/email');
 
 const {
   env: { JWT_SECRET, JWT_EXPIRES_IN },
@@ -115,3 +117,85 @@ exports.roleGuard = (...roles) =>
 
     next();
   });
+
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+  //get user
+  const user = await User.findOne({ email: req.body.email });
+
+  if (!user) {
+    return next(new AppError('No user registered with given email.', 404));
+  }
+
+  //generate reset password token and save encrypted token into db
+  const token = user.createPasswordResetToken();
+  //tell odm to not validate
+  await user.save({ validateBeforeSave: false });
+
+  //send email
+  const resetUrl = `${req.protocol}://${req.get(
+    'host'
+  )}/api/v1/users/reset-password/${token}`;
+
+  const message = `Click on the link to reset your password: ${resetUrl}`;
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'Your password reset link',
+      message,
+    });
+  } catch (error) {
+    //if there's an error from nodemail, reset the token
+    user.passwordResetToken = undefined;
+    user.passwordResetExpiry = undefined;
+
+    await user.save({ validateBeforeSave: false });
+
+    return next(
+      new AppError(
+        'Failed to send a reset password link to user email. Please try again later',
+        500
+      )
+    );
+  }
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Token sent to the user email address',
+  });
+});
+
+exports.resetPassword = catchAsync(async (req, res, next) => {
+  const {
+    body: { password, passwordConfirm },
+    params: { token },
+  } = req;
+
+  //get user
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpiry: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return next(new AppError('Reset token is invalid.', 400));
+  }
+  //token !expired && user exist, set new password
+  user.password = password;
+  user.passwordConfirm = passwordConfirm;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpiry = undefined;
+  //when save is resolved, the write operation might not be completed yet.
+  await user.save();
+  //update passwordUpdatedAt field - done by model middleware
+  //log the user in, send jwt
+  const jwtToken = generateToken(user._id);
+
+  res.status(200).json({
+    status: 'success',
+    token: jwtToken,
+    date: Date.now(),
+  });
+});

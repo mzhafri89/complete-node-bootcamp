@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
@@ -47,6 +48,8 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'guide', 'lead-guide', 'admin'],
     default: 'user',
   },
+  passwordResetToken: String,
+  passwordResetExpiry: Date,
 });
 
 //hashing/encryption password during save and update
@@ -55,6 +58,15 @@ userSchema.pre('save', async function (next) {
 
   this.password = await bcrypt.hash(this.password, 12); //will generate diff string even for the same pass
   this.passwordConfirm = undefined; //no need to persisted in db
+
+  return next();
+});
+
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password') || this.isNew) return next();
+
+  //substracting 1s to compensate for slow doc save
+  this.passwordUpdatedAt = Date.now() - 1000;
 
   return next();
 });
@@ -80,6 +92,26 @@ userSchema.methods.isPasswordChanged = function (timestamp) {
   //false  = password is not changed after token is issued
   return false;
 };
+
+userSchema.methods.createPasswordResetToken = function () {
+  //use node crypto module to generate a simple reset password token
+  const token = crypto.randomBytes(32).toString('hex');
+
+  //encrypt token to be stored in db
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  //expires in 10 min
+  this.passwordResetExpiry = Date.now() + 10 * 60 * 1000;
+
+  return token;
+};
+
+//no need, can just query directly
+userSchema.methods.isPasswordResetTokenExpired = () =>
+  this.passwordResetExpiry < Date.now();
 
 const User = mongoose.model('User', userSchema);
 
