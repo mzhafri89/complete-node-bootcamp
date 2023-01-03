@@ -196,6 +196,35 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     token: jwtToken,
-    date: Date.now(),
+  });
+});
+
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const {
+    headers: { authorization },
+    body: { newPassword, newPasswordConfirm, currentPassword },
+  } = req;
+  //get user
+  const token = authorization.split(' ')[1];
+  const payload = await promisify(jwt.verify)(token, JWT_SECRET);
+  const user = await User.findById(payload.id).select('+password');
+
+  //verify current password is correct
+  if (!user || !(await user.validatePassword(currentPassword, user.password))) {
+    //only give vague information on why the login was failing
+    return next(new AppError('Incorrect password', 401));
+  }
+
+  //update password - validation would be done by schema validator
+  user.password = newPassword;
+  user.passwordConfirm = newPasswordConfirm;
+  await user.save();
+
+  //send jwt
+  const newToken = generateToken(user._id);
+
+  return res.status(200).json({
+    status: 'success',
+    token: newToken,
   });
 });
