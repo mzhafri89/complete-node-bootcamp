@@ -5,6 +5,7 @@ const {
   getUser,
   updateUser,
   deleteUser,
+  updateAuthenticatedUserDetails,
 } = require('../controllers/user');
 const {
   register,
@@ -12,6 +13,7 @@ const {
   forgotPassword,
   resetPassword,
   updatePassword,
+  tokenGuard,
 } = require('../controllers/auth');
 
 const router = express.Router();
@@ -23,6 +25,11 @@ router.post('/forgot-password', forgotPassword);
 router.patch('/reset-password/:token', resetPassword);
 router.patch('/update-password', updatePassword);
 //other route follows the REST verb for crud ops
+router.patch(
+  '/update-authenticated-user-details',
+  tokenGuard,
+  updateAuthenticatedUserDetails
+);
 router.route(`/`).get(getAllUser).post(createUser);
 router.route(`/:id`).get(getUser).patch(updateUser).delete(deleteUser);
 
